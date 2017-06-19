@@ -103,7 +103,7 @@ var PomeloClient = function () {
       // emit heartbeat timeout fn
       me.heartbeatTimeoutId = setTimeout(function () {
         me.emit('heartbeatTimeout');
-        me.disconnect();
+        me.disconnect(1001);
       }, me.heartbeatTimeout + 500/*delay*/);
     }, me.heartbeatInterval);
   };
@@ -276,7 +276,7 @@ PomeloClient.prototype.sendMessage = function (requestId, route, msg) {
   this.send(Package.encode(Package.TYPE_DATA, msg));
 };
 
-PomeloClient.prototype.disconnect = function () {
+PomeloClient.prototype.disconnect = function (code) {
   if (!this.socket) {
     return;
   }
@@ -295,7 +295,7 @@ PomeloClient.prototype.disconnect = function () {
   //   1011: 'an unexpected condition prevented the request from being fulfilled',
   //   1012: 'service restart',
   //   1013: 'try again later'
-  this.socket.close(1000);
+  this.socket.close(code || 1000);
   this.socket = null;
 };
 
