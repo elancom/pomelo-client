@@ -1,0 +1,23 @@
+{
+  "name": "pomelo-client",
+  "version": "1.0.0",
+  "description": "pomelo-client for node",
+  "main": "pomelo-client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elancom/pomelo-client.git"
+  },
+  "keywords": [
+    "pomelo",
+    "client"
+  ],
+  "author": "lzx",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/elancom/pomelo-client/issues"
+  },
+  "homepage": "https://github.com/elancom/pomelo-client#readme"
+}
