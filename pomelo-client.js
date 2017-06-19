@@ -257,7 +257,7 @@ PomeloClient.prototype.sendMessage = function (requestId, route, msg) {
     util.log('NO-IMPL');
   }
 
-  // 字典
+  // dict
   var compressRoute = false;
   if (this.useDict && this.dictRoute2Code[route]) {
     route = this.dictRoute2Code[route];
