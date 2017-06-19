@@ -1,2 +1,3 @@
 # pomelo-client
-pomelo-client for node
+pomelo client on node
+support on single process to create multiple pomelo client

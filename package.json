@@ -19,5 +19,9 @@
   "bugs": {
     "url": "https://github.com/elancom/pomelo-client/issues"
   },
-  "homepage": "https://github.com/elancom/pomelo-client#readme"
+  "homepage": "https://github.com/elancom/pomelo-client#readme",
+  "dependencies": {
+    "pomelo-protocol": "0.1.6",
+    "ws": "3.0.0"
+  }
 }

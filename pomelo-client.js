@@ -1,9 +1,7 @@
-// node版本, 使用websocket连接
-
 var events = require('events');
 var util = require('util');
 var Protocol = require('pomelo-protocol');
-var protobuf = require('pomelo-protobuf');
+var Protobuf = require('./pomelo-protobuf/protobuf');
 var WebSocket = require('ws');
 
 var Package = Protocol.Package;
@@ -28,29 +26,27 @@ var PomeloClient = function () {
 
   var me = this;
 
-  // 数据包处理
   this.handles = {};
-
-  // 握手消息
+  // handshake
   this.handles[Package.TYPE_HANDSHAKE] = function (data) {
     data = JSON.parse(Protocol.strdecode(data));
     if (data.code == CODE_OLD_CLIENT) {
-      me.emit('error', '客户端版本太旧');
+      me.emit('error', 'the client version is too old');
       return;
     }
 
     if (data.code !== CODE_OK) {
-      me.emit('error', '握手失败');
+      me.emit('error', 'handshake failed');
     }
 
-    // 心跳协议
+    // heartbeat
     var heartbeat = data.sys.heartbeat;
     if (heartbeat) {
       me.heartbeatInterval = heartbeat * 1000;
       me.heartbeatTimeout = me.heartbeatInterval * 2;
     }
 
-    // 字典
+    // dict
     var dict = data.sys.dict;
     if (dict) {
       me.useDict = true;
@@ -64,11 +60,12 @@ var PomeloClient = function () {
     // protobuf
     var protos = data.sys.protos;
     if (protos) {
+      me.protobuf = new Protobuf();
       me.useProtos = true;
       me.protos.version = protos.protoVersion || 0;
       me.protos.server = protos.server;
       me.protos.client = protos.client;
-      protobuf.init({
+      me.protobuf.init({
         encoderProtos: me.protos.client,
         decoderProtos: me.protos.server
       });
@@ -78,7 +75,7 @@ var PomeloClient = function () {
       this.handshakeCallback(data)
     }
 
-    // 响应握手
+    // ack
     me.send(Package.encode(Package.TYPE_HANDSHAKE_ACK));
 
     if (me.initCallback) {
@@ -87,9 +84,9 @@ var PomeloClient = function () {
     }
   };
 
-  // 心跳消息
+  // heartbeat
   this.handles[Package.TYPE_HEARTBEAT] = function () {
-    // 清除超时
+    // clear heartbeat timeout fn
     if (me.heartbeatTimeoutId) {
       clearTimeout(me.heartbeatTimeoutId);
       me.heartbeatTimeoutId = null;
@@ -99,33 +96,33 @@ var PomeloClient = function () {
       return;
     }
 
-    // 发送心跳包
+    // send heartbeat packet 
     me.heartbeatId = setTimeout(function () {
       me.heartbeatId = null;
       me.send(Package.encode(Package.TYPE_HEARTBEAT));
-      // 超时
+      // emit heartbeat timeout fn
       me.heartbeatTimeoutId = setTimeout(function () {
         me.emit('heartbeatTimeout');
         me.disconnect();
-      }, me.heartbeatTimeout + 500/*延迟*/);
+      }, me.heartbeatTimeout + 500/*delay*/);
     }, me.heartbeatInterval);
   };
 
-  // 业务消息,服务器推送/客户端请求回调
+  // data message, server push/client request
   this.handles[Package.TYPE_DATA] = function (data) {
     var msg = Message.decode(data);
 
-    // 字典处理
+    // dict
     if (msg.compressRoute) {
       var dictCode2Route = me.dictCode2Route[msg.route];
       if (!dictCode2Route) {
-        console.log('找不到路由字典[' + msg.route + ']');
+        util.log('not found dict[' + msg.route + ']');
         return;
       }
       msg.route = dictCode2Route;
     }
 
-    // 推送消息
+    // if client request, we need find route by requestId on client
     var requestId = msg.id;
     if (requestId) {
       msg.route = me.requestRoutes[requestId];
@@ -135,7 +132,7 @@ var PomeloClient = function () {
     // protobuf
     var body;
     if (me.useProtos && me.protos.server[msg.route]) {
-      body = protobuf.decode(msg.route, msg.body);
+      body = me.protobuf.decode(msg.route, msg.body);
     } else {
       body = JSON.parse(Protocol.strdecode(msg.body))
     }
@@ -145,7 +142,7 @@ var PomeloClient = function () {
       return;
     }
 
-    // 请求消息
+    // request message
     var requestRouteCallback = me.requestRouteCallbacks[requestId];
     if (!requestRouteCallback) {
       return;
@@ -154,7 +151,7 @@ var PomeloClient = function () {
     requestRouteCallback.call(null, body);
   };
 
-  // 被T消息
+  // kick
   this.handles[Package.TYPE_KICK] = function (data) {
     me.emit('onKick', JSON.parse(Protocol.strdecode(data)));
   };
@@ -167,13 +164,13 @@ PomeloClient.prototype.init = function (params, done) {
     this.disconnect();
   }
 
-  // 请求
+  // request
   this.useCrypto = false;
   this.requestId = 0;
   this.requestRoutes = {};
   this.requestRouteCallbacks = {};
 
-  // 字典
+  // dict
   this.useDict = false;
   this.dictCode2Route = {};
   this.dictRoute2Code = {};
@@ -182,7 +179,7 @@ PomeloClient.prototype.init = function (params, done) {
   this.useProtos = false;
   this.protos = {};
 
-  // 握手信息
+  // handshake data
   this.handshakeBuffer = {
     'sys': {
       protoVersion: 0
@@ -192,7 +189,7 @@ PomeloClient.prototype.init = function (params, done) {
 
   if (params.encrypt) {
     this.useCrypto = true;
-    console.log('加密未实现');
+    util.log('NO-IMPL');
   }
   this.initCallback = done;
 
@@ -217,13 +214,13 @@ PomeloClient.prototype.init = function (params, done) {
     }
   };
   socket.onerror = function (event) {
-    me.emit('io-error', event)
+    me.emit('io-error', event);
+    util.log('onerror: ', event.message);
   };
   socket.onclose = function (event) {
-    me.emit('close', event);
+    me.onDisconnect(event);
     me.emit('disconnect', event);
   };
-
   this.socket = socket;
 };
 
@@ -257,7 +254,7 @@ PomeloClient.prototype.request = function (route, msg, done) {
 
 PomeloClient.prototype.sendMessage = function (requestId, route, msg) {
   if (this.useCrypto) {
-    console.log('加密未实现');
+    util.log('NO-IMPL');
   }
 
   // 字典
@@ -269,7 +266,7 @@ PomeloClient.prototype.sendMessage = function (requestId, route, msg) {
 
   // protobuf
   if (this.useProtos && this.protos.client[route]) {
-    msg = protobuf.encode(route, msg);
+    msg = me.protobuf.encode(route, msg);
   } else {
     msg = Protocol.strencode(JSON.stringify(msg));
   }
@@ -280,12 +277,29 @@ PomeloClient.prototype.sendMessage = function (requestId, route, msg) {
 };
 
 PomeloClient.prototype.disconnect = function () {
-  var socket = this.socket;
-  if (socket) {
-    socket.close();
-    this.socket = null
+  if (!this.socket) {
+    return;
   }
+  this.socket.closeByOwner = true;
+  //   1000: 'normal',
+  //   1001: 'going away',
+  //   1002: 'protocol error',
+  //   1003: 'unsupported data',
+  //   1004: 'reserved',
+  //   1005: 'reserved for extensions',
+  //   1006: 'reserved for extensions',
+  //   1007: 'inconsistent or invalid data',
+  //   1008: 'policy violation',
+  //   1009: 'message too big',
+  //   1010: 'extension handshake missing',
+  //   1011: 'an unexpected condition prevented the request from being fulfilled',
+  //   1012: 'service restart',
+  //   1013: 'try again later'
+  this.socket.close(1000);
+  this.socket = null;
+};
 
+PomeloClient.prototype.onDisconnect = function (event) {
   if (this.heartbeatId) {
     clearTimeout(this.heartbeatId);
     this.heartbeatId = null;
@@ -296,25 +310,12 @@ PomeloClient.prototype.disconnect = function () {
   }
 };
 
-function test() {
-  var pomeloClient = new PomeloClient();
-  pomeloClient.on('close', function () {
-    console.log('关闭');
-  });
-  pomeloClient.init({
-    host: '127.0.0.1',
-    port: 1088
-  }, function () {
-    pomeloClient.request('gate.gateHandler.entry', function (data) {
-      pomeloClient.init({
-        host: data.ip,
-        port: data.port
-      }, function () {
-        console.log('成功连通连接器');
-      });
-    });
-  });
-}
-// test();
+PomeloClient.prototype.close = function () {
+  if (this.closed) {
+    return;
+  }
+  this.closed = true;
+  this.emit('close', this);
+};
 
 module.exports = PomeloClient;
