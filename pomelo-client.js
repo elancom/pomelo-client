@@ -215,7 +215,6 @@ PomeloClient.prototype.init = function (params, done) {
   };
   socket.onerror = function (event) {
     me.emit('io-error', event);
-    util.log('onerror: ', event.message);
   };
   socket.onclose = function (event) {
     me.onDisconnect(event);
