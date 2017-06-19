@@ -18,7 +18,7 @@ var PomeloClient = function () {
 
   this.socket = null;
 
-  // 心跳
+  // heartbeat
   this.heartbeatInterval = 0;
   this.heartbeatTimeout = 0;
   this.heartbeatId = null;
