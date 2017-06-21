@@ -280,7 +280,6 @@ PomeloClient.prototype.disconnect = function (code) {
   if (!this.socket) {
     return;
   }
-  this.socket.closeByOwner = true;
   //   1000: 'normal',
   //   1001: 'going away',
   //   1002: 'protocol error',
