@@ -37,6 +37,7 @@ var PomeloClient = function () {
 
     if (data.code !== CODE_OK) {
       me.emit('error', 'handshake failed');
+      return;
     }
 
     // heartbeat
