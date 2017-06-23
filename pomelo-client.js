@@ -139,7 +139,11 @@ var PomeloClient = function () {
     }
 
     if (!requestId) {
-      me.emit(msg.route, body);
+      try {
+        me.emit(msg.route, body);
+      } finally {
+        me.emit('*', {route: msg.route, body: body});
+      }
       return;
     }
 
