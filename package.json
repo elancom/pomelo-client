@@ -1,5 +1,5 @@
 {
-  "name": "pomelo-client",
+  "name": "pomelo-client-node",
   "version": "1.0.0",
   "description": "pomelo-client for node",
   "main": "pomelo-client.js",
