@@ -22,6 +22,6 @@
   "homepage": "https://github.com/elancom/pomelo-client#readme",
   "dependencies": {
     "pomelo-protocol": "0.1.6",
-    "ws": "3.0.0"
+    "ws": ">=3.3.1"
   }
 }
